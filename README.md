@@ -1,38 +1,56 @@
-# <h1 align="center"> Forge Template </h1>
+# Counterfactual Wallets
 
-**Template repository for getting started quickly with Foundry projects**
+Contract suite to faciliate counterfactual wallet creation and management.
 
-![Github Actions](https://github.com/foundry-rs/forge-template/workflows/CI/badge.svg)
+## Lifecycle:
 
-## Getting Started
+A CounterfactualWalletController is deployed for an EOA (`0xA`) funded with ETH.
 
-Click "Use this template" on [GitHub](https://github.com/foundry-rs/forge-template) to create a new repository with this repo as the initial state.
+ERC20/721 and Ether can be sent to any counterfactual addresses associated with this contract.
 
-Or, if your repo already exists, run:
-```sh
-forge init
-forge build
-forge test
-```
+These can be calculated using the function `computeAddress(walletId)` where `walletId` is a nonce of choice, typically increasing monotonically from zero. This address is communicated out of bands to a counterparty.
 
-## Writing your first test
+Later, `0xA` can _sweep_ the funds received at these counterfactual addresses to a destination of their choice.
 
-All you need is to `import forge-std/Test.sol` and then inherit it from your test contract. Forge-std's Test contract comes with a pre-instatiated [cheatcodes environment](https://book.getfoundry.sh/cheatcodes/), the `vm`. It also has support for [ds-test](https://book.getfoundry.sh/reference/ds-test.html)-style logs and assertions. Finally, it supports Hardhat's [console.log](https://github.com/brockelmore/forge-std/blob/master/src/console.sol). The logging functionalities require `-vvvv`.
+For example:
 
-```solidity
-pragma solidity 0.8.10;
+1. `0xA` calculates counterfactual address `0xA1` with `walletId` = 1
+1. `0xA1` sends this address to counter party B (address `0xB`)
+1. `0xB` sends 100 USDC to `0xA1`
+1. `0xA` _sweeps_ `0xA1` to a destination address `0xZ` by calling `sweep(walletId = 1, destination = 0xZ, [erc20 = usdc address, amount = 100], [])`
 
-import "forge-std/Test.sol";
+### Goerli Testnet Example:
+1. Mintable ERC20 token @ https://goerli.etherscan.io/token/0x66ee871f085b93eb37f95d135774eff4d402e694#writeContract
+1. Deployed CFWController @ https://goerli.etherscan.io/address/0x19B1054C5A5a7BcF4f64B325727cb39C8d946007#code
+1. Calculate associated address for walletId = 1  = https://goerli.etherscan.io/address/0x0786fE42865Cbde3db1b1990852e75ADDda33ed5
+1. Send 10 mintable ERC20 token above to this address https://goerli.etherscan.io/tx/0x64001e31b38cd4497008056fdb77eab4bd6efd328b0aea6920f3c12494f78068
+1. Sweep these tokens to another random address 0xB3925cC4446635D2E3AdfB050cDa950d720167a0 https://goerli.etherscan.io/tx/0x57826ccff214e1e8edcaf31457f5a579b03c1bbad5ccc2727b2d3b751a5d662e
+ 
+### Privacy
+This pattern does seem to introduce some level of unlinkability similar to that gained in a16z's sneaky auction https://a16zcrypto.com/hidden-in-plain-sight-a-sneaky-solidity-implementation-of-a-sealed-bid-auction/
 
-contract ContractTest is Test {
-    function testExample() public {
-        vm.roll(100);
-        console.log(1);
-        emit log("hi");
-        assertTrue(true);
-    }
-}
-```
+If the walletId's are random enough, then it is hard to index sufficiently so that you can identify a transaction sent to a related CFW address.
+This would be improved even further if the CFWController itself wasnt even deployed yet.
+
+### Under the hood
+
+A minimal proxy factory is used to create (CREATE2) a CounterfactualWallet which is then swept for ERC20, ERC721 or Ether to a target address specifed.
+The contract is then destroyed within the same transaction.
+
+An ERC20 transfer which usually costs 50k gas now costs 130k (:()
+
+![](./static/diagram.png)
+
+## Todo:
+- 
+- investigate create3
+- we need to specify an address to self destruct - what implications does this have
+- investigate indexing architecture
+    - using a top level factory pattern for CFWControllers -> use The Graph template 
+    - how to monitor for incoming transactions across for walletId's 0 to uint256.max
+## About
+
+Inspired by PoolTogether's Lootbox (https://github.com/pooltogether/loot-box).
 
 ## Development
 
