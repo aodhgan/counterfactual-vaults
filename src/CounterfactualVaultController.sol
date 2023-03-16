@@ -7,16 +7,16 @@ import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol"
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./external/lib/MinimalProxyLibrary.sol";
-import "./CounterfactualWallet.sol";
+import "./CounterfactualVault.sol";
 
 /// @title Allows users to plunder an address associated with an ERC721
 /// @notice Counterfactually instantiates a wallet at an address unique to an ERC721 token.  The address for an ERC721 token can be computed and later
 /// plundered by transferring token balances to the ERC721 owner.
-contract CounterfactualWalletController is Ownable {
-    CounterfactualWallet public counterfactualWalletInstance;
+contract CounterfactualVaultController is Ownable {
+    CounterfactualVault public counterfactualWalletInstance;
 
-    bytes32 internal immutable _counterfactualWalletBytecodeHash;
-    bytes internal _counterfactualWalletBytecode;
+    bytes32 internal immutable _counterfactualVaultBytecodeHash;
+    bytes internal _counterfactualVaultBytecode;
 
     /// @notice Emitted when a wallet is swept
     event Sweep(
@@ -33,16 +33,16 @@ contract CounterfactualWalletController is Ownable {
     );
 
     /// @notice Constructs a new controller.
-    /// @dev Creates a new CounterfactualWallet instance and an associated minimal proxy.
+    /// @dev Creates a new CounterfactualVault instance and an associated minimal proxy.
     constructor() Ownable() {
-        counterfactualWalletInstance = new CounterfactualWallet();
+        counterfactualWalletInstance = new CounterfactualVault();
         counterfactualWalletInstance.initialize();
 
-        _counterfactualWalletBytecode = MinimalProxyLibrary.minimalProxy(
+        _counterfactualVaultBytecode = MinimalProxyLibrary.minimalProxy(
             address(counterfactualWalletInstance)
         );
-        _counterfactualWalletBytecodeHash = keccak256(
-            _counterfactualWalletBytecode
+        _counterfactualVaultBytecodeHash = keccak256(
+            _counterfactualVaultBytecode
         );
     }
 
@@ -56,15 +56,15 @@ contract CounterfactualWalletController is Ownable {
     function executeCalls(
         address erc721,
         uint256 tokenId,
-        CounterfactualWallet.Call[] calldata calls
+        CounterfactualVault.Call[] calldata calls
     ) external onlyOwner returns (bytes[] memory) {
-        CounterfactualWallet counterfactualWallet = _createCFWallet(
+        CounterfactualVault counterfactualVault = _createCFVault(
             erc721,
             tokenId
         );
         (erc721, tokenId);
-        bytes[] memory result = counterfactualWallet.executeCalls(calls);
-        // counterfactualWallet.destroy(owner);
+        bytes[] memory result = counterfactualVault.executeCalls(calls);
+        // counterfactualVault.destroy(owner);
 
         emit Executed(erc721, tokenId, msg.sender);
 
@@ -73,44 +73,43 @@ contract CounterfactualWalletController is Ownable {
 
     /// @notice Computes the Counterfactual Wallet address for an address.
     /// @dev The contract will not exist yet, so the address will have no code.
-    /// @param walletId The walletId ("HD wallet" nonce)
+    /// @param vaultId The vaultId ("HD wallet" nonce)
     /// @return The address of the Counterfactual Wallet
-    function computeAddress(uint256 walletId) external view returns (address) {
+    function computeAddress(uint256 vaultId) external view returns (address) {
         return
             Create2Upgradeable.computeAddress(
-                _salt(owner(), walletId),
-                _counterfactualWalletBytecodeHash
+                _salt(owner(), vaultId),
+                _counterfactualVaultBytecodeHash
             );
     }
 
-    /// @notice Creates a CounterfactualWallet for the given owners address.
+    /// @notice Creates a CounterfactualVault for the given owners address.
     /// @param owner The ERC721 address
-    /// @param walletId The ERC721 token id
-    /// @return The address of the newly created CounterfactualWallet.
-    function _createCFWallet(address owner, uint256 walletId)
-        internal
-        returns (CounterfactualWallet)
-    {
-        CounterfactualWallet counterfactualWallet = CounterfactualWallet(
+    /// @param vaultId The ERC721 token id
+    /// @return The address of the newly created CounterfactualVault.
+    function _createCFVault(
+        address owner,
+        uint256 vaultId
+    ) internal returns (CounterfactualVault) {
+        CounterfactualVault counterfactualVault = CounterfactualVault(
             Create2Upgradeable.deploy(
                 0,
-                _salt(owner, walletId),
-                _counterfactualWalletBytecode
+                _salt(owner, vaultId),
+                _counterfactualVaultBytecode
             )
         );
-        counterfactualWallet.initialize();
-        return counterfactualWallet;
+        counterfactualVault.initialize();
+        return counterfactualVault;
     }
 
     /// @notice Computes the CREATE2 salt for the given ERC721 token.
     /// @param owner The owners address
-    /// @param walletId The walletId
+    /// @param vaultId The vaultId
     /// @return A bytes32 value that is unique to that ERC721 token.
-    function _salt(address owner, uint256 walletId)
-        internal
-        pure
-        returns (bytes32)
-    {
-        return keccak256(abi.encodePacked(owner, walletId));
+    function _salt(
+        address owner,
+        uint256 vaultId
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(owner, vaultId));
     }
 }

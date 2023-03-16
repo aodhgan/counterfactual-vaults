@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 /// @title
-/// @notice A CounterfactualWallet allows anyone to withdraw all tokens or execute calls on behalf of the contract.
+/// @notice A CounterfactualVault allows anyone to withdraw all tokens or execute calls on behalf of the contract.
 /// @dev This contract is intended to be counterfactually instantiated via CREATE2.
-contract CounterfactualWallet {
+contract CounterfactualVault {
     /// @notice A structure to define arbitrary contract calls
     struct Call {
         address to;
@@ -20,23 +20,21 @@ contract CounterfactualWallet {
     address private _owner;
 
     modifier onlyOwner() {
-        require(msg.sender == _owner, "CounterfactualWallet/only-owner");
+        require(msg.sender == _owner, "CounterfactualVault/only-owner");
         _;
     }
 
     function initialize() external {
-        require(_owner == address(0), "CounterfactualWallet/already-init");
+        require(_owner == address(0), "CounterfactualVault/already-init");
         _owner = msg.sender;
     }
 
     /// @notice Executes calls on behalf of this contract.
     /// @param calls The array of calls to be executed.
     /// @return An array of the return values for each of the calls
-    function executeCalls(Call[] calldata calls)
-        external
-        onlyOwner
-        returns (bytes[] memory)
-    {
+    function executeCalls(
+        Call[] calldata calls
+    ) external onlyOwner returns (bytes[] memory) {
         bytes[] memory response = new bytes[](calls.length);
         for (uint256 i = 0; i < calls.length; i++) {
             response[i] = _executeCall(
