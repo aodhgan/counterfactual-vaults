@@ -1,2 +1,9 @@
+[profile.default]
+src = 'contracts/src'
+test = 'contracts/test'
+out = 'contracts/out'
+libs = ['contracts/lib']
+
+
 [profile.ci.fuzz]
 runs = 10_000
