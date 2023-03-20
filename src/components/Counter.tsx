@@ -1,89 +1,94 @@
+import { waitForTransaction } from '@wagmi/core'
 import { BigNumber } from 'ethers'
 import { useState } from 'react'
-import { useNetwork, useWaitForTransaction } from 'wagmi'
+import { useContractEvent, useContractRead, useContractWrite, useNetwork, usePrepareContractWrite, useWaitForTransaction } from 'wagmi'
 
 import {
+  counterfactualVaultControllerABI,
+  counterfactualVaultControllerFactoryABI,
   useOwnableOwner,
 } from '../generated'
 
 export function Counter() {
+  const [createdVaultControllerAddress, setCreatedVaultControllerAddress] = useState('');
+
   return (
     <div>
-      <GetAddresses />
+      <CreateVaultController onVaultCreated={setCreatedVaultControllerAddress} />
+      {createdVaultControllerAddress && <GetAddresses createdVaultControllerAddress={createdVaultControllerAddress} />}
     </div>
   )
 }
 
-function GetAddresses() {
-  const { data: count } = useOwnableOwner()
+const factoryAddress = "0xF32659FA35e8B3c7daFb061702043a24b75793dE"
+
+function GetAddresses({ createdVaultControllerAddress }: any) {
 
 
-  return <div>The contract owner is: {count?.toString()}</div>
+  // create an array of bignumbers from 1 to 10
+  const args = Array.from(Array(100).keys()).map((i) => BigNumber.from(i + 1))
+
+  // call caclulateAddresses on createdVaultControllerAddress
+  const contractReadResult = useContractRead({
+    address: createdVaultControllerAddress,
+    abi: counterfactualVaultControllerABI,
+    functionName: 'computeAddress',
+    args: [args],
+  })
+  console.log({ contractReadResult })
+  return (
+    <div>
+      <div>You have a vault at: {createdVaultControllerAddress}</div>
+      <div className="scrollable-container">
+        {contractReadResult?.data &&
+          contractReadResult.data.map((address, index) => (
+            <div key={index}>{address.toString()}</div>
+          ))}
+      </div>
+    </div>
+  );
+
 }
 
-// function DeployCounterFactualVault() {
-//   const [value, setValue] = useState('')
 
-//   const { config } = usePrepareCounterSetNumber({
-//     args: value ? [BigNumber.from(value)] : undefined,
-//     enabled: Boolean(value),
-//   })
-//   const { data, write } = useCounterSetNumber({
-//     ...config,
-//     onSuccess: () => setValue(''),
-//   })
+function CreateVaultController({ onVaultCreated }: any) {
+  const { data: count } = useOwnableOwner()
 
-//   const { refetch } = useCounterNumber()
-//   const { isLoading } = useWaitForTransaction({
-//     hash: data?.hash,
-//     onSuccess: () => refetch(),
-//   })
+  const { config } = usePrepareContractWrite({
+    address: factoryAddress,
+    abi: counterfactualVaultControllerFactoryABI,
+    functionName: 'createCounterfactualVaultController',
+  })
+  const { data, isSuccess, write } = useContractWrite(config)
 
-//   return (
-//     <div>
-//       Set Number:
-//       <input
-//         disabled={isLoading}
-//         onChange={(e) => setValue(e.target.value)}
-//         value={value}
-//       />
-//       <button disabled={!write || isLoading} onClick={() => write?.()}>
-//         Set
-//       </button>
-//       {isLoading && <ProcessingMessage hash={data?.hash} />}
-//     </div>
-//   )
-// }
+  const { isLoading } = useWaitForTransaction({
+    hash: data?.hash,
+    onSuccess: () => console.log("sent transaction!!"),
+  })
 
-// function Increment() {
-//   const { config } = usePrepareCounterIncrement()
-//   const { data, write } = useCounterIncrement(config)
 
-//   const { refetch } = useCounterNumber()
-//   const { isLoading } = useWaitForTransaction({
-//     hash: data?.hash,
-//     onSuccess: () => refetch(),
-//   })
 
-//   return (
-//     <div>
-//       <button disabled={!write || isLoading} onClick={() => write?.()}>
-//         Increment
-//       </button>
-//       {isLoading && <ProcessingMessage hash={data?.hash} />}
-//     </div>
-//   )
-// }
+  useContractEvent({
+    address: factoryAddress,
+    abi: counterfactualVaultControllerFactoryABI,
+    eventName: 'CounterfactualVaultControllerCreated',
+    listener(creator, vault) {
+      console.log("the event happened!")
+      console.log({ vault })
+      console.log({ creator })
 
-function ProcessingMessage({ hash }: { hash?: `0x${string}` }) {
-  const { chain } = useNetwork()
-  const etherscan = chain?.blockExplorers?.etherscan
+      onVaultCreated(vault);
+    },
+  })
+
   return (
-    <span>
-      Processing transaction...{' '}
-      {etherscan && (
-        <a href={`${etherscan.url}/tx/${hash}`}>{etherscan.name}</a>
-      )}
-    </span>
+    <div>
+      <button disabled={!write} onClick={() => write?.()}>
+        Create Counterfactual Vault
+      </button>
+      {isLoading && <div>Check Wallet</div>}
+      {isSuccess && <div>Transaction: {JSON.stringify(data)}</div>}
+
+    </div>
   )
 }
