@@ -6,17 +6,18 @@ import "../../openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import "../../openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../../openzeppelin-contracts/contracts/token/ERC1155/IERC1155.sol";
 
+import "../CounterfactualVaultController.sol";
+
 /// @notice A CounterfactualVault allows anyone to withdraw all tokens or execute calls on behalf of the contract.
 /// @dev This contract is intended to be counterfactually instantiated via CREATE2.
 contract CounterfactualVault {
-    /// @notice A structure to define arbitrary contract calls
+    address private _owner;
+
     struct Call {
         address to;
         uint256 value;
         bytes data;
     }
-
-    address private _owner;
 
     modifier onlyOwner() {
         require(msg.sender == _owner, "CounterfactualVault/only-owner");

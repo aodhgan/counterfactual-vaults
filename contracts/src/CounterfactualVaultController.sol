@@ -9,18 +9,25 @@ import "../openzeppelin-contracts/contracts/access/Ownable.sol";
 import "./external/lib/MinimalProxyLibrary.sol";
 import "./vaults/CounterfactualVault.sol";
 
+import "forge-std/console.sol";
+
 /// @notice Counterfactually instantiates a wallet at an address unique to an ERC721 token.  The address for an ERC721 token can be computed and later
 /// plundered by transferring token balances to the ERC721 owner.
 contract CounterfactualVaultController is Ownable {
+    /// @notice A structure to define arbitrary contract calls
+    struct VaultCall {
+        uint256 vaultId;
+        CounterfactualVault.Call[] call;
+    }
+
     CounterfactualVault public counterfactualWalletInstance;
 
     bytes32 internal immutable _counterfactualVaultBytecodeHash;
     bytes internal _counterfactualVaultBytecode;
 
     /// @notice Emitted when a wallet is executed
-    event Executed(uint256 indexed vaultID, address indexed operator);
+    event Executed(uint256 indexed vaultId, address indexed operator);
 
-    /// @notice Constructs a new controller.
     /// @dev Creates a new CounterfactualVault instance and an associated minimal proxy.
     constructor(address owner) Ownable() {
         counterfactualWalletInstance = new CounterfactualVault();
@@ -39,21 +46,24 @@ contract CounterfactualVaultController is Ownable {
     }
 
     /// @dev The wallet will be counterfactually created, calls executed, then the contract destroyed.
-    /// @param vaultId The ERC721 token id
-    /// @param calls The array of call structs that define that target, amount of ether, and data.
-    /// @return The array of call return values.
-    function executeCalls(
-        uint256 vaultId,
-        CounterfactualVault.Call[] calldata calls
-    ) external onlyOwner returns (bytes[] memory) {
-        CounterfactualVault counterfactualVault = _createCFVault(
-            msg.sender,
-            vaultId
-        );
+    /// @param vaultCalls The array of call structs that define that the vault Id target, amount of ether, and data.
+    function executeVaultCalls(
+        VaultCall[] calldata vaultCalls
+    ) external onlyOwner returns (bytes[][] memory) {
+        bytes[][] memory result = new bytes[][](vaultCalls.length);
+        address _owner = owner();
 
-        bytes[] memory result = counterfactualVault.executeCalls(calls);
+        for (uint256 i = 0; i < vaultCalls.length; i++) {
+            CounterfactualVault vault = _createCFVault(
+                _owner,
+                vaultCalls[i].vaultId
+            );
+            console.log("vault address: ", address(vault));
+            CounterfactualVault.Call[] memory call = vaultCalls[i].call;
+            result[i] = vault.executeCalls(call);
 
-        emit Executed(vaultId, msg.sender);
+            emit Executed(vaultCalls[i].vaultId, msg.sender);
+        }
 
         return result;
     }
@@ -61,7 +71,6 @@ contract CounterfactualVaultController is Ownable {
     /// @notice Computes the Counterfactual Wallet addresses for given vaultIds.
     /// @dev The contract will not exist yet, so the address will have no code.
     /// @param vaultIds The vaultIds (vault nonce)
-    /// @return The address of the Counterfactual Vault
     function computeAddress(
         uint256[] calldata vaultIds
     ) external view returns (address[] memory) {
@@ -79,7 +88,6 @@ contract CounterfactualVaultController is Ownable {
     /// @notice Creates a CounterfactualVault for the given owners address.
     /// @param owner The owners address
     /// @param vaultId The counterfactual vault id
-    /// @return The address of the newly created CounterfactualVault.
     function _createCFVault(
         address owner,
         uint256 vaultId
@@ -95,10 +103,9 @@ contract CounterfactualVaultController is Ownable {
         return counterfactualVault;
     }
 
-    /// @notice Computes the CREATE2 salt for the given ERC721 token.
+    /// @notice Computes the CREATE2 salt for the given owner and vaultId.
     /// @param owner The owners address
     /// @param vaultId The vaultId
-    /// @return A bytes32 value that is unique to that ERC721 token.
     function _salt(
         address owner,
         uint256 vaultId
