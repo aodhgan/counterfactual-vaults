@@ -18,17 +18,15 @@ contract CounterfactualVaultController is Ownable {
     bytes internal _counterfactualVaultBytecode;
 
     /// @notice Emitted when a wallet is executed
-    event Executed(
-        address indexed erc721,
-        uint256 indexed tokenId,
-        address indexed operator
-    );
+    event Executed(uint256 indexed vaultID, address indexed operator);
 
     /// @notice Constructs a new controller.
     /// @dev Creates a new CounterfactualVault instance and an associated minimal proxy.
     constructor(address owner) Ownable() {
         counterfactualWalletInstance = new CounterfactualVault();
-        counterfactualWalletInstance.initialize();
+        counterfactualWalletInstance.initialize(); // do we need this? does it have to be a new CounterfactualVault each time?
+        // or we can hardcode this
+        // or deploy one CounterfactualVault instance before and pass in the constructor
 
         _transferOwnership(owner);
 
@@ -40,31 +38,27 @@ contract CounterfactualVaultController is Ownable {
         );
     }
 
-    /// @notice Allows owner to transfer all given tokens in a counterfactual wallet to a destination address
-    /// @notice Allows the owner of an ERC721 to execute abitrary calls on behalf of the associated counterfactual wallet.
     /// @dev The wallet will be counterfactually created, calls executed, then the contract destroyed.
-    /// @param erc721 The ERC721 address
-    /// @param tokenId The ERC721 token id
+    /// @param vaultId The ERC721 token id
     /// @param calls The array of call structs that define that target, amount of ether, and data.
     /// @return The array of call return values.
     function executeCalls(
-        address erc721,
-        uint256 tokenId,
+        uint256 vaultId,
         CounterfactualVault.Call[] calldata calls
     ) external onlyOwner returns (bytes[] memory) {
         CounterfactualVault counterfactualVault = _createCFVault(
-            erc721,
-            tokenId
+            msg.sender,
+            vaultId
         );
-        (erc721, tokenId);
+
         bytes[] memory result = counterfactualVault.executeCalls(calls);
 
-        emit Executed(erc721, tokenId, msg.sender);
+        emit Executed(vaultId, msg.sender);
 
         return result;
     }
 
-    /// @notice Computes the Counterfactual Wallet address for an address.
+    /// @notice Computes the Counterfactual Wallet addresses for given vaultIds.
     /// @dev The contract will not exist yet, so the address will have no code.
     /// @param vaultIds The vaultIds (vault nonce)
     /// @return The address of the Counterfactual Vault
@@ -83,8 +77,8 @@ contract CounterfactualVaultController is Ownable {
     }
 
     /// @notice Creates a CounterfactualVault for the given owners address.
-    /// @param owner The ERC721 address
-    /// @param vaultId The ERC721 token id
+    /// @param owner The owners address
+    /// @param vaultId The counterfactual vault id
     /// @return The address of the newly created CounterfactualVault.
     function _createCFVault(
         address owner,

@@ -47,7 +47,7 @@ contract TestCounterfactualVaultController is Test {
             )
         });
 
-        cfwc.executeCalls(address(this), 2, calls);
+        cfwc.executeCalls(2, calls);
 
         assertEq(token.balanceOf(randomAddress), uint256(100), "ok");
         assertEq(token.balanceOf(calculatedAddresses[0]), uint256(0), "ok");
