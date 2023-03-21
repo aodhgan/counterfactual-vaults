@@ -7,7 +7,7 @@ import "../openzeppelin-contracts/contracts/token/ERC20/presets/ERC20PresetMinte
 import "../openzeppelin-contracts/contracts/access/Ownable.sol";
 
 import "./external/lib/MinimalProxyLibrary.sol";
-import "./CounterfactualVault.sol";
+import "./vaults/CounterfactualVault.sol";
 
 /// @notice Counterfactually instantiates a wallet at an address unique to an ERC721 token.  The address for an ERC721 token can be computed and later
 /// plundered by transferring token balances to the ERC721 owner.
@@ -58,7 +58,6 @@ contract CounterfactualVaultController is Ownable {
         );
         (erc721, tokenId);
         bytes[] memory result = counterfactualVault.executeCalls(calls);
-        // counterfactualVault.destroy(owner);
 
         emit Executed(erc721, tokenId, msg.sender);
 
