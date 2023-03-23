@@ -63,69 +63,70 @@ contract TestCounterfactualVaultController is Test {
 
     function testMultipleExecuteCall() public {
         //     // create array of vaultIds
-        uint256[] memory vaultIds = new uint256[](2);
-        vaultIds[0] = 3;
-        vaultIds[1] = 4;
+        CounterfactualVaultController.VaultCall[]
+            memory myVaultCalls = _createErc20TokenTransfer();
+        console.log("created data");
+        bytes[][] memory result = cfwc.executeVaultCalls(myVaultCalls);
+        //     assertEq(token.balanceOf(calculatedAddresses[1]), uint256(0), "ok");
+    }
 
+    function _createErc20TokenTransfer()
+        internal
+        returns (CounterfactualVaultController.VaultCall[] memory)
+    {
+        uint256[] memory vaultIds = new uint256[](2);
+        vaultIds[0] = 102;
+        vaultIds[1] = 103;
         address[] memory calculatedAddresses = cfwc.computeAddress(vaultIds);
         // mint some tokens to the calculated address
-        token.mint(calculatedAddresses[0], 101);
-        token.mint(calculatedAddresses[1], 101);
+        token.mint(calculatedAddresses[0], 100);
+        token.mint(calculatedAddresses[1], 100);
 
         // executeCall to transfer the tokens to a random address
-        address randomAddress = address(0x1231231);
+        address randomAddress = address(0x123);
 
         // create a call struct
         CounterfactualVaultController.VaultCall[]
             memory vaultCalls = new CounterfactualVaultController.VaultCall[](
                 2
             );
-        CounterfactualVault.Call[]
-            memory calls = new CounterfactualVault.Call[](2);
-        calls[0] = CounterfactualVault.Call({
-            to: address(token),
-            value: 0,
-            data: abi.encodeWithSignature(
-                "transfer(address,uint256)",
-                randomAddress,
-                51
-            )
-        });
-        calls[1] = CounterfactualVault.Call({
-            to: address(token),
-            value: 0,
-            data: abi.encodeWithSignature(
-                "transfer(address,uint256)",
-                randomAddress,
-                51
-            )
-        });
-        token.balanceOf(calculatedAddresses[0]);
-        token.balanceOf(calculatedAddresses[1]);
 
+        CounterfactualVault.Call[]
+            memory callsVault1 = new CounterfactualVault.Call[](1);
+        CounterfactualVault.Call[]
+            memory callsVault2 = new CounterfactualVault.Call[](1);
+
+        // populate the call struct
+        callsVault1[0] = CounterfactualVault.Call({
+            to: address(token),
+            value: 0,
+            data: abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                randomAddress,
+                100
+            )
+        });
         // populate the call struct
         vaultCalls[0] = CounterfactualVaultController.VaultCall({
             vaultId: vaultIds[0],
-            call: calls
+            call: callsVault1
         });
+
+        // populate the call struct
+        callsVault2[0] = CounterfactualVault.Call({
+            to: address(token),
+            value: 0,
+            data: abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                randomAddress,
+                100
+            )
+        });
+        // populate the call struct
         vaultCalls[1] = CounterfactualVaultController.VaultCall({
             vaultId: vaultIds[1],
-            call: calls
+            call: callsVault2
         });
-
-        cfwc.executeVaultCalls(vaultCalls);
-
-        //     assertEq(
-        //         token.balanceOf(randomAddress),
-        //         uint256(102),
-        //         "random now has all tokens"
-        //     );
-        //     assertEq(token.balanceOf(calculatedAddresses[0]), uint256(0), "ok");
-        //     assertEq(token.balanceOf(calculatedAddresses[1]), uint256(0), "ok");
+        return vaultCalls;
     }
-
-    // function testFoo(uint256 x) public {
-    //     vm.assume(x < type(uint128).max);
-    //     assertEq(x + x, x * 2);
-    // }
 }

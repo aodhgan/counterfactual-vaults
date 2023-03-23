@@ -58,8 +58,9 @@ contract CounterfactualVaultController is Ownable {
                 _owner,
                 vaultCalls[i].vaultId
             );
-            console.log("vault address: ", address(vault));
+            console.log("executing as vault address: ", address(vault));
             CounterfactualVault.Call[] memory call = vaultCalls[i].call;
+            console.logBytes(abi.encode(call));
             result[i] = vault.executeCalls(call);
 
             emit Executed(vaultCalls[i].vaultId, msg.sender);
