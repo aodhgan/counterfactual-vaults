@@ -10,3 +10,7 @@ button {
 body {
     @apply p-5;
 }
+
+h1 {
+    @apply text-2xl;
+}

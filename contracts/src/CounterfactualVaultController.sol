@@ -45,8 +45,8 @@ contract CounterfactualVaultController is Ownable {
         );
     }
 
-    /// @dev The wallet will be counterfactually created, calls executed, then the contract destroyed.
-    /// @param vaultCalls The array of call structs that define that the vault Id target, amount of ether, and data.
+    /// @dev The wallet will be counterfactually created and calls executed
+    /// @param vaultCalls The array of call structs that define that the vaultId target, amount of ether, and data.
     function executeVaultCalls(
         VaultCall[] calldata vaultCalls
     ) external onlyOwner returns (bytes[][] memory) {
@@ -54,14 +54,8 @@ contract CounterfactualVaultController is Ownable {
         address _owner = owner();
 
         for (uint256 i = 0; i < vaultCalls.length; i++) {
-            CounterfactualVault vault = _createCFVault(
-                _owner,
-                vaultCalls[i].vaultId
-            );
-            console.log("executing as vault address: ", address(vault));
-            CounterfactualVault.Call[] memory call = vaultCalls[i].call;
-            console.logBytes(abi.encode(call));
-            result[i] = vault.executeCalls(call);
+            result[i] = _createCFVault(_owner, vaultCalls[i].vaultId)
+                .executeCalls(vaultCalls[i].call);
 
             emit Executed(vaultCalls[i].vaultId, msg.sender);
         }
@@ -69,7 +63,7 @@ contract CounterfactualVaultController is Ownable {
         return result;
     }
 
-    /// @notice Computes the Counterfactual Wallet addresses for given vaultIds.
+    /// @notice Computes the Counterfactual Vault addresseses for given vaultIds.
     /// @dev The contract will not exist yet, so the address will have no code.
     /// @param vaultIds The vaultIds (vault nonce)
     function computeAddress(
