@@ -38,3 +38,6 @@ Inspired by PoolTogether's Lootbox (https://github.com/pooltogether/loot-box) an
 ## Development
 
 This project uses [Foundry](https://getfoundry.sh). See the [book](https://book.getfoundry.sh/getting-started/installation.html) for instructions on how to install and use Foundry.
+
+### Testing
+Run `forge test`
